@@ -1,0 +1,52 @@
+def compute_exact_match(generated_codes, target_codes):
+    match = 0
+    mismatch = 0
+    
+    for i in range(generated_codes.size):
+        for j in range(generated_codes[i].size):
+            if(generated_codes[i][j] == target_codes[i][j]):
+                match += 1
+            else:
+                mismatch += 1
+    
+    return match / (match+mismatch)
+
+
+
+
+# Assuming your validation dataset is already preprocessed
+from tqdm import tqdm
+
+generated_codes = []
+target_codes = []
+
+# Iterate over the validation set
+for example in tqdm(validation_dataset):
+    input_code = example['cleaned_method']  # Masked code
+    target_code = example['target_block']   # Actual condition (what you want to predict)
+    
+    # Mask the input (replace the condition with <mask>)
+    masked_code = input_code.replace("if", "<mask>").strip()
+
+    # Tokenize and generate prediction
+    inputs = tokenizer(masked_code, return_tensors="pt", padding=True, truncation=True)
+    with torch.no_grad():
+        outputs = model.generate(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'], max_length=256)
+    
+    generated_condition = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    # Store the generated condition and target condition
+    generated_codes.append(generated_condition)
+    target_codes.append(target_code)
+
+# Now compute the CodeBLEU score for the entire set
+score = codebleu_score.compute(generated_codes, target_codes)
+print(f"Overall CodeBLEU Score: {score['codebleu']}")
+
+
+
+
+
+
+
+
