@@ -6,6 +6,7 @@ from transformers import EarlyStoppingCallback
 from datasets import load_dataset
 import pandas as pd
 import os
+from datasets import Dataset
 # Hugging Face - Fine-Tuning CodeT5 for Code Translation (AI4SE Focus)
 
 # This notebook demonstrates how to fine-tune the CodeT5 model using Hugging Face Transformers
@@ -29,12 +30,15 @@ data_dir = r"Downloads\Archive\Archive"
 csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
 
 # Read the CSV files into DataFrames
-datasets = [pd.read_csv(os.path.join(data_dir, file)) for file in csv_files]
+test_dataset = load_dataset('csv', data_files=os.path.join(data_dir, csv_files[0]))['train']
+#train_dataset = load_dataset('csv', data_files=os.path.join(data_dir, csv_files[1]))['train']
+validation_dataset = load_dataset('csv', data_files=os.path.join(data_dir, csv_files[2]))['train']
 
-# `datasets` is a list of DataFrames, one for each CSV file
-print("Sample Python Code:", datasets[0]["cleaned_method"])
-#rint("Target Java Code:", datasets['train'][0]['cs'])
-"""
+dataset = DatasetDict({
+    'test': test_dataset,
+    #'train': train_dataset,
+    'validation': validation_dataset
+})
 # ------------------------------------------------------------------------
 # 3. Load Pre-trained Model & Tokenizer
 # ------------------------------------------------------------------------
@@ -44,7 +48,7 @@ model_checkpoint = "Salesforce/codet5-small"
 model = T5ForConditionalGeneration.from_pretrained(model_checkpoint)
 
 tokenizer = RobertaTokenizer.from_pretrained(model_checkpoint)
-tokenizer.add_tokens(["<IF-STMT>"]) #Imagine we need an extra token. This line adds the extra token to the vocabulary
+tokenizer.add_tokens(["<mask>"]) #Imagine we need an extra token. This line adds the extra token to the vocabulary
 
 model.resize_token_embeddings(len(tokenizer))
 
@@ -54,17 +58,21 @@ model.resize_token_embeddings(len(tokenizer))
 # ------------------------------------------------------------------------------------------------
 
 def preprocess_function(examples):
-    inputs = examples["java"]
-    targets = examples["cs"]
+    inputs = examples["cleaned_method"]
+    targets = examples["target_block"]
+    
     model_inputs = tokenizer(inputs, max_length=256, truncation=True, padding="max_length")
     labels = tokenizer(targets, max_length=256, truncation=True, padding="max_length")
+    
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
+# Apply preprocessing to each dataset individually
+dataset = dataset.map(preprocess_function, batched=True)
 
+# Verify tokenization (print a sample from the training set)
 
-tokenized_datasets = dataset.map(preprocess_function, batched=True)
-
+"""
 # ------------------------------------------------------------------------
 # 5. Define Training Arguments and Trainer
 # ------------------------------------------------------------------------
@@ -115,4 +123,5 @@ print("Test Evaluation Metrics:", metrics)
 input_code = "def add(a, b):\n    return a + b"
 inputs = tokenizer(input_code, return_tensors="pt", padding=True, truncation=True)
 outputs = model.generate(**inputs, max_length=256)
-print("Generated Java Code:\n", tokenizer.decode(outputs[0], skip_special_tokens=True))"""
+print("Generated Java Code:\n", tokenizer.decode(outputs[0], skip_special_tokens=True))"
+"""
