@@ -1,3 +1,11 @@
+from transformers import T5ForConditionalGeneration, AutoModelForSeq2SeqLM
+from transformers import RobertaTokenizer
+from datasets import DatasetDict
+from transformers import TrainingArguments, Trainer
+from transformers import EarlyStoppingCallback
+from datasets import load_dataset
+import pandas as pd
+import os
 # Hugging Face - Fine-Tuning CodeT5 for Code Translation (AI4SE Focus)
 
 # This notebook demonstrates how to fine-tune the CodeT5 model using Hugging Face Transformers
@@ -12,25 +20,24 @@
 # ------------------------------------------------------------------------
 # 2. Load Dataset (CodeXGLUE - Code Translation Java <=> C#)
 # ------------------------------------------------------------------------
-from datasets import load_dataset
 
 
-# CodeXGLUE is a benchmark dataset collection by Microsoft for code-related tasks.
-# Here, we use the code-translation-python-java dataset.
-dataset = load_dataset("google/code_x_glue_cc_code_to_code_trans")
+# Directory containing the datasets
+data_dir = r"Downloads\Archive\Archive"
 
-# Dataset contains: 'train', 'validation', 'test' splits
-print("Sample Python Code:", dataset['train'][0]['java'])
-print("Target Java Code:", dataset['train'][0]['cs'])
+# Get all CSV files in the directory
+csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
 
+# Read the CSV files into DataFrames
+datasets = [pd.read_csv(os.path.join(data_dir, file)) for file in csv_files]
+
+# `datasets` is a list of DataFrames, one for each CSV file
+print("Sample Python Code:", datasets[0]["cleaned_method"])
+#rint("Target Java Code:", datasets['train'][0]['cs'])
+"""
 # ------------------------------------------------------------------------
 # 3. Load Pre-trained Model & Tokenizer
 # ------------------------------------------------------------------------
-from transformers import T5ForConditionalGeneration, AutoModelForSeq2SeqLM
-from transformers import RobertaTokenizer
-from datasets import DatasetDict
-from transformers import TrainingArguments, Trainer
-from transformers import EarlyStoppingCallback
 
 model_checkpoint = "Salesforce/codet5-small"
 
@@ -108,4 +115,4 @@ print("Test Evaluation Metrics:", metrics)
 input_code = "def add(a, b):\n    return a + b"
 inputs = tokenizer(input_code, return_tensors="pt", padding=True, truncation=True)
 outputs = model.generate(**inputs, max_length=256)
-print("Generated Java Code:\n", tokenizer.decode(outputs[0], skip_special_tokens=True))
+print("Generated Java Code:\n", tokenizer.decode(outputs[0], skip_special_tokens=True))"""
