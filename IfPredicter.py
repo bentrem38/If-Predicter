@@ -9,9 +9,6 @@ import os
 from datasets import Dataset
 # Hugging Face - Fine-Tuning CodeT5 for Code Translation (AI4SE Focus)
 
-# This notebook demonstrates how to fine-tune the CodeT5 model using Hugging Face Transformers
-# for a Software Engineering task: translating Python code to Java.
-
 # ------------------------
 # 1. Install Required Libraries
 # ------------------------
@@ -31,12 +28,12 @@ csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
 
 # Read the CSV files into DataFrames
 test_dataset = load_dataset('csv', data_files=os.path.join(data_dir, csv_files[0]))['train']
-#train_dataset = load_dataset('csv', data_files=os.path.join(data_dir, csv_files[1]))['train']
+train_dataset = load_dataset('csv', data_files=os.path.join(data_dir, csv_files[1]))['train']
 validation_dataset = load_dataset('csv', data_files=os.path.join(data_dir, csv_files[2]))['train']
 
 dataset = DatasetDict({
     'test': test_dataset,
-    #'train': train_dataset,
+    'train': train_dataset,
     'validation': validation_dataset
 })
 # ------------------------------------------------------------------------
@@ -72,14 +69,14 @@ dataset = dataset.map(preprocess_function, batched=True)
 
 # Verify tokenization (print a sample from the training set)
 
-"""
+
 # ------------------------------------------------------------------------
 # 5. Define Training Arguments and Trainer
 # ------------------------------------------------------------------------
 
 
 training_args = TrainingArguments(
-    output_dir="./codet5-finetuned",
+    output_dir="./codet5-small-finetuned",
     eval_strategy="epoch",
     save_strategy="epoch",
     logging_dir="./logs",
@@ -100,8 +97,8 @@ training_args = TrainingArguments(
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=tokenized_datasets["train"],
-    eval_dataset=tokenized_datasets["validation"],
+    train_dataset=dataset["train"],
+    eval_dataset=dataset["validation"],
     tokenizer=tokenizer,
     callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
 )
@@ -114,7 +111,7 @@ trainer.train()
 # ------------------------
 # 7. Evaluate on Test Set
 # ------------------------
-metrics = trainer.evaluate(tokenized_datasets["test"])
+metrics = trainer.evaluate(dataset["test"])
 print("Test Evaluation Metrics:", metrics)
 
 # ------------------------
@@ -123,5 +120,4 @@ print("Test Evaluation Metrics:", metrics)
 input_code = "def add(a, b):\n    return a + b"
 inputs = tokenizer(input_code, return_tensors="pt", padding=True, truncation=True)
 outputs = model.generate(**inputs, max_length=256)
-print("Generated Java Code:\n", tokenizer.decode(outputs[0], skip_special_tokens=True))"
-"""
+print("Generated if conditionals:\n", tokenizer.decode(outputs[0], skip_special_tokens=True))
