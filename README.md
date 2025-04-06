@@ -43,7 +43,7 @@ When you're finished, use the following command to deactivate the virtual enviro
 
 ## **4. Run Model**
 
-To finetune, evaluate, test, and evaluate the transformer model, simply run the following:
+To finetune, test, and evaluate the transformer model, simply run the following:
 
 `python If-Predicter.py`
 
