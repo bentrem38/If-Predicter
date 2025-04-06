@@ -25,7 +25,7 @@ Navigate into the repository:
 
 ```shell
 ~ $ cd If-Predicter
-~/n-grams $
+~/If-Predicter $
 ```
 
 Set up a virtual environment and activate it (optional):
