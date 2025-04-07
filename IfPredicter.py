@@ -1,23 +1,23 @@
 from transformers import T5ForConditionalGeneration, AutoModelForSeq2SeqLM
 from transformers import RobertaTokenizer
-from datasets import DatasetDict
 from transformers import TrainingArguments, Trainer
 from transformers import EarlyStoppingCallback
 from datasets import load_dataset
-import pandas as pd
-import re
 from datasets import Dataset
+from datasets import DatasetDict
+import pandas as pd
+import numpy as np
+import re
 import autopep8
 import sacrebleu
 import codebleu
 import os
-from datasets import Dataset
 import torch
 import evaluate
 from codebleu import calc_codebleu
 from tqdm import tqdm
-import numpy as np
 import csv
+
 
 # ------------------------
 # 1. Install Required Libraries
@@ -89,9 +89,9 @@ def mask_dataset(dataset, datatype):
             if target in flattened_method:
                 flattened_method = flattened_method.replace(target, "<MASK>")
                 yes+=1
+                # Append processed results
                 processed_methods.append(flattened_method)
                 processed_targets.append(target)
-        # Append processed results
             i += 1
     #print(yes)
     #print(no)
@@ -119,7 +119,6 @@ def preprocess_function(dataset):
     labels = tokenizer(targets, max_length=256, truncation=True, padding="max_length")
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
-
 
 
 train = train.map(preprocess_function, batched=True)
@@ -179,7 +178,7 @@ print(tokenizer.decode(outputs[0]))
 model2.eval()
 
 all_inputs = test["processed_method"]
-batch_size = 8  # start small, increase if your GPU can handle it
+batch_size = 8
 decoded_outputs = []
 
 # ------------------------------------------------------------------------
