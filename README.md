@@ -28,24 +28,13 @@ Navigate into the repository:
 ~/If-Predicter $
 ```
 
-Set up a virtual environment and activate it (optional):
-
-For macOS/Linux:
-
-```shell
-~/If-Predicter $ python -m venv ./venv/
-~/If-Predicters $ source venv/bin/activate
-(venv) ~/If-Predicter $
-```
-
-When you're finished, use the following command to deactivate the virtual environment:
-`(venv) $ deactivate`
+Modify the `IfPredicter.py` file on line 32 to reflect the path to the data corpus on your local machine.
 
 ## **4. Run Model**
 
 To finetune, test, and evaluate the transformer model, simply run the following:
 
-`python If-Predicter.py`
+`python IfPredicter.py`
 
 The file `testset-results.csv` will display the results of the model's evaluation on selected tests in the `train.csv` folder.
 
