@@ -25,14 +25,12 @@ import csv
 #!pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 #!pip install transformers datasets evaluate -q
 
-#https://huggingface.co/Salesforce/codet5-small
-# ------------------------------------------------------------------------
-# 2. Load Dataset (CodeXGLUE - Code Translation Java <=> C#)
-# ------------------------------------------------------------------------
-data_dir = r"C:\Users\bentr\Downloads\Archive\Archive"
 
-# CodeXGLUE is a benchmark dataset collection by Microsoft for code-related tasks.
-# Here, we use the code-translation-python-java dataset.
+# ------------------------------------------------------------------------
+# 2. Load Dataset 
+# ------------------------------------------------------------------------
+data_dir = r"C:filepath goes here"
+
 csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
 # Read the CSV files into DataFrames
 test_dataset = load_dataset('csv', data_files=os.path.join(data_dir, csv_files[0]))['train']
@@ -46,13 +44,21 @@ dataset = DatasetDict({
 })
 #print(dataset)
 
+# ------------------------------------------------------------------------
+# 3. Load Pre-trained Model & Tokenizer
+# ------------------------------------------------------------------------
+
 model_checkpoint = "Salesforce/codet5-small"
 model = T5ForConditionalGeneration.from_pretrained(model_checkpoint)
 
 tokenizer = RobertaTokenizer.from_pretrained(model_checkpoint)
-tokenizer.add_tokens(["<MASK>"]) #Imagine we need an extra token. This line adds the extra token to the vocabulary
+tokenizer.add_tokens(["<MASK>"]) #add <MASK> token to tokenizer
 
 model.resize_token_embeddings(len(tokenizer))
+
+# ------------------------------------------------------------------------
+# 3. Mask the if-conditionals in our datasets
+# ------------------------------------------------------------------------
 
 def mask_dataset(dataset, datatype):
     if datatype == "test" or "validation": max = 4999
@@ -61,7 +67,7 @@ def mask_dataset(dataset, datatype):
     processed_targets = []
     i = 0
 
-    # Loop through the dataset and apply processing
+    # Loop through the dataset and apply masking
     yes = 0
     no = 0
     while i <= max:
@@ -87,9 +93,9 @@ def mask_dataset(dataset, datatype):
                 processed_targets.append(target)
         # Append processed results
             i += 1
-    print(yes)
-    print(no)
-    # Build Dataset (not DatasetDict)
+    #print(yes)
+    #print(no)
+    # Build Dataset
     processed = Dataset.from_dict({
         'processed_target': processed_targets,
         'processed_method': processed_methods,
@@ -101,6 +107,10 @@ train = mask_dataset(dataset, "train")
 #print(valid)
 #print(train)
 #print(test)
+
+# ------------------------------------------------------------------------------------------------
+# 4. We prepare now the fine-tuning dataset using the tokenizer we preloaded
+# ------------------------------------------------------------------------------------------------
 
 def preprocess_function(dataset):
     inputs = dataset["processed_method"]
@@ -172,6 +182,10 @@ all_inputs = test["processed_method"]
 batch_size = 8  # start small, increase if your GPU can handle it
 decoded_outputs = []
 
+# ------------------------------------------------------------------------
+# 9. Run the model generation in batches in order to run code without memory errors
+# ------------------------------------------------------------------------
+
 for i in tqdm(range(0, len(all_inputs), batch_size)):
     batch = all_inputs[i:i+batch_size]
 
@@ -186,15 +200,19 @@ for i in tqdm(range(0, len(all_inputs), batch_size)):
     decoded_batch = tokenizer.batch_decode(outputs, skip_special_tokens=True)
     decoded_outputs.extend(decoded_batch)
 
-# Optional: print a few outputs
+#print a few outputs
 #for i in range(5):
 #    print(test["processed_target"][300+i])
 #    print(f"Prediction: {decoded_outputs[300+i]}")
 
+# ------------------------------------------------------------------------------------------------
+# 10. # Evaluate overall BLEU Scores
+# ------------------------------------------------------------------------------------------------
+
+
 predictions = decoded_outputs
 references = test["processed_target"]
 
-# Evaluate overall BLEU Scores
 bleu = evaluate.load("bleu")
 results = bleu.compute(predictions=predictions, references=references)
 print("SacreBLEU Score: ", results)
@@ -208,20 +226,22 @@ Exact Match Score: 0.29
 exact_match_score = np.mean([ref == pred for ref, pred in zip(references, predictions)])
 print(f"Exact Match Score: {exact_match_score:.2f}")
 
+# ------------------------------------------------------------------------------------------------
+# 11. # Calculate bleu scores for individual test cases + read information into testset-results.csv
+# ------------------------------------------------------------------------------------------------
+
 bleu_scores = []
 exact_matches = []
 codebleu_scores = []
 for ref, pred in zip(references, predictions):
-    # BLEU expects a list of predictions and references
+    #calculate sacrebleu score for individual cases
     bleu_result = bleu.compute(predictions=[pred], references=[ref])
     bleu_scores.append(bleu_result["bleu"]*100)
-
-
-    # CodeBLEU - assumes `calc_codebleu` can be called per-sample
+    #calculate bleu score for individual cases
     codebleu_result = calc_codebleu([[ref]], [pred], lang="python")
     codebleu_scores.append(codebleu_result["codebleu"]*100)
-
-    results = {
+#prepare results for csv file
+results = {
     "Input function with masked if condition": test["processed_method"],
     "Was the prediction correct (exact match)?": [ref == pred for ref, pred in zip(references, predictions)],
     "Expected if condition" : test["processed_target"],
@@ -229,5 +249,6 @@ for ref, pred in zip(references, predictions):
     "CodeBLEU prediction score": codebleu_scores, 
     "BLEU-4 prediction score": bleu_scores
 }
+#write results to testset-results.csv
 df = pd.DataFrame(results)
 df.to_csv("testset-results.csv", index=False)
